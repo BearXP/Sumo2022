@@ -1,0 +1,5 @@
+# The Belay library lets me control the pico from my computer version of python
+belay
+# ampy is a CLI tool to control the pico
+# adafruit-ampy
+matplotlib
