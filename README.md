@@ -12,6 +12,9 @@ Sumo 2022
     - [Initial Setup](#initial-setup)
     - [Pico Go](#pico-go)
     - [Belay:](#belay)
+  - [Developing](#developing)
+    - [MatPlotLib](#matplotlib)
+    - [Long lidar](#long-lidar)
 
 ## Introduction
 For the moment this is just the software for my sumo robot, since I want to sync it between a couple of computers while I'm developing it. The rest of the hardware description will be added as I need to.
@@ -22,6 +25,7 @@ For the moment this is just the software for my sumo robot, since I want to sync
 |Pico Datasheet - CHeck pinouts, etc. | [link](https://datasheets.raspberrypi.com/pico/pico-datasheet.pdf) |
 | Belay - Use micropython peripheral in your main code | [Hackaday](https://hackaday.com/2022/08/10/your-micropython-board-can-be-your-tinkering-peripheral/) <br /> [GitHub](https://github.com/BrianPugh/belay) |
 | Wokwi - Pico simuilator | [link](https://wokwi.com/projects/new/pi-pico) |
+| Long Lidar Source | [link](https://github.com/wahajmurtaza/HLS-LFCD2/blob/main/hls_lfcd2.py) |
 
 ## Setup
 ### Initial Setup
@@ -60,3 +64,14 @@ print(f"New State: {newState}")
 
 device._board.close()
 ```
+
+## Developing
+### MatPlotLib
+I decided to use MatPlotLib to show the distances seen by the sensors, specifically because it [can show live data](https://www.geeksforgeeks.org/how-to-update-a-plot-in-matplotlib/).
+
+I could have also used [pygame apparently](https://github.com/yoyojacky/Laser_lidar_car_python3/blob/master/new_on.py), but I would 
+
+### Long lidar
+I found a library which allows you to [check the temperature](https://github.com/Minhir/laser-control/blob/master/laser.py), but that seems wrong. Mayve they have another device connected which responds to the `\x02` command on the same serial bus?
+
+The actual library I copied from was [this one](https://github.com/wahajmurtaza/HLS-LFCD2/blob/main/hls_lfcd2.py)
