@@ -1,3 +1,4 @@
+from typing import Generator
 import matplotlib.pyplot as plt
 import numpy as np
 import belay
@@ -6,7 +7,7 @@ import belay
 device = belay.Device("COM5")
 
 @device.task
-def getDistances():
+def getDistances(running = True) -> Generator:
     import machine
     from time import sleep, time
     import _thread
@@ -15,7 +16,6 @@ def getDistances():
             """
             The function is called when the class is instantiated. It sets up the UART port to
             talk to the lidar senor
-
             :param portNo: The UART port number to use
             :param angleOffset: This is the offset of the sensor from the center of the robot
             """
@@ -25,22 +25,21 @@ def getDistances():
             self.ser = machine.UART(self.portNo, uartSpeed)
             self.distances = [-1] * 360
             self.intensities = [-1] * 360
-            self.start()
-
-        def start(self) -> None:
+            self.running = False
+            self._start()
+        def _start(self) -> None:
             """
             It sends a start command to the lidar sensor, and then records the time
             """
             self.ser.write(b"b")
             self.startTime = time()
-
         def stop(self) -> None:
             """
             It sends a start command to the lidar sensor, and then records the time
             """
             self.ser.write(b"e")
             self.startTime = None
-
+            self.running = False
         def _read_serial(self) -> bytes:
             """
             It reads the serial port and returns the data
@@ -48,7 +47,7 @@ def getDistances():
             """
             # If the start command has not been sent, then make sure it's started
             if self.startTime == None:
-                self.start()
+                self._start()
             # Note: The lidar needs ~2s after startup to spin up
             startupWaitTime = self.startTime + 2 - time()
             if startupWaitTime > 0:
@@ -75,7 +74,6 @@ def getDistances():
                     retryCount += 1
                     sleep(0.01)
             return data
-
         def _read_range(self, data):
             """
             The function takes in a byte array, and returns a tuple of the RPM, distance, and intensity
@@ -102,7 +100,6 @@ def getDistances():
                 self.distances[angle_offsetted] = distance
                 self.intensities[angle_offsetted] = intensity
             return self.distances
-
         def update(self):
             """
             It reads the serial port, checks the first byte of the data, and if it's not 250, it returns an
@@ -117,38 +114,55 @@ def getDistances():
             if data[0] != 250:
                 return f"Error, data[0] was {data[0]} dec - {hex(data[0])} hex"
             return self._read_range(data)
-        
         def _loop(self):
-            while True:
+            while self.running:
                 self.update()
-        
-        def _start_loop(self):
+        def start_loop(self):
+            self.running = True
             _thread.start_new_thread(self._loop, ())
+    
     lidar = Lidar(portNo=1, angleOffset=0)
-    lidar.update()
-    lidar._start_loop()
-    return lidar.distances
-    # while True:
-    #     yield lidar.distances
+    lidar.start_loop()
+    while running:
+        yield lidar.distances
+    lidar.stop()
+
+def plotLine():
+    x = range(360)
+    y = [0, 3000] * 180
+    plt.ion()
+    fig = plt.figure()
+    # https://www.statology.org/fig-add-subplot/
+    ax = fig.add_subplot(111) # In layout that has 1 row(s) and 1 column(s), add the first subplot
+    # line1 = ax.scatter(x, y)
+    line1, = ax.plot(x, y, linewidth=0, marker='o')
+    try:
+        for ys in getDistances(running=True):
+            line1.set_ydata(ys)
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+    except KeyboardInterrupt:
+        getDistances(running=False)
 
 
-x = range(360)
-# y = [0, 3000] * 180
+def plotRoom():
+    import math
+    x = [-3500, 3500] * 180
+    y = [-3500, 3500] * 180
+    plt.ion()
+    fig = plt.figure()
+    ax = fig.add_subplot(111) # In layout that has 1 row(s) and 1 column(s), add the first subplot
+    line1, = ax.plot(x, y, linewidth=0, marker='o')
+    try:
+        for dists in getDistances(running=True):
+            xs = [int(dist * math.cos(math.radians(deg))) for deg, dist in enumerate(dists)]
+            ys = [int(dist * math.sin(math.radians(deg))) for deg, dist in enumerate(dists)]
+            line1.set_xdata(xs)
+            line1.set_ydata(ys)
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+    except KeyboardInterrupt:
+        getDistances(running=False)
 
-print("Getting Distances...")
-y = getDistances()
-print(y)
-
-plt.ion()
-fig = plt.figure()
-# https://www.statology.org/fig-add-subplot/
-ax = fig.add_subplot(111) # In layout that has 1 row(s) and 1 column(s), add the first subplot
-# line1 = ax.scatter(x, y)
-line1, = ax.plot(x, y, linewidth=0, marker='o')
-
-i = 0
-while True:
-    y = getDistances()
-    line1.set_ydata(y)
-    fig.canvas.draw()
-    fig.canvas.flush_events()
+if __name__ == "__main__":
+    plotRoom()
