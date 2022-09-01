@@ -1,7 +1,7 @@
 import belay
 from time import sleep
 
-device = belay.Device("COM5")
+device = belay.Device("COM7")
 
 @device.task
 def count():

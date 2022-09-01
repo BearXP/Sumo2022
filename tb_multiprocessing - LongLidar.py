@@ -2,15 +2,16 @@ from typing import Generator
 import matplotlib.pyplot as plt
 import numpy as np
 import belay
-# import threading
 
-device = belay.Device("COM5")
+device = belay.Device("COM7")
+
 
 @device.task
-def getDistances(running = True) -> Generator:
+def getDistances(running=True) -> Generator:
     import machine
     from time import sleep, time
     import _thread
+
     class Lidar:
         def __init__(self, portNo, angleOffset) -> None:
             """
@@ -27,12 +28,14 @@ def getDistances(running = True) -> Generator:
             self.intensities = [-1] * 360
             self.running = False
             self._start()
+
         def _start(self) -> None:
             """
             It sends a start command to the lidar sensor, and then records the time
             """
             self.ser.write(b"b")
             self.startTime = time()
+
         def stop(self) -> None:
             """
             It sends a start command to the lidar sensor, and then records the time
@@ -40,6 +43,7 @@ def getDistances(running = True) -> Generator:
             self.ser.write(b"e")
             self.startTime = None
             self.running = False
+
         def _read_serial(self) -> bytes:
             """
             It reads the serial port and returns the data
@@ -61,7 +65,7 @@ def getDistances(running = True) -> Generator:
                 if bit == None:
                     break
                 # If we receive the sync character, read and return the full packet
-                elif bit == b'\xFA':
+                elif bit == b"\xFA":
                     packet = self.ser.read(41)
                     if packet:
                         data = bit + packet
@@ -74,6 +78,7 @@ def getDistances(running = True) -> Generator:
                     retryCount += 1
                     sleep(0.01)
             return data
+
         def _read_range(self, data):
             """
             The function takes in a byte array, and returns a tuple of the RPM, distance, and intensity
@@ -100,6 +105,7 @@ def getDistances(running = True) -> Generator:
                 self.distances[angle_offsetted] = distance
                 self.intensities[angle_offsetted] = intensity
             return self.distances
+
         def update(self):
             """
             It reads the serial port, checks the first byte of the data, and if it's not 250, it returns an
@@ -114,18 +120,21 @@ def getDistances(running = True) -> Generator:
             if data[0] != 250:
                 return f"Error, data[0] was {data[0]} dec - {hex(data[0])} hex"
             return self._read_range(data)
+
         def _loop(self):
             while self.running:
                 self.update()
+
         def start_loop(self):
             self.running = True
             _thread.start_new_thread(self._loop, ())
-    
+
     lidar = Lidar(portNo=1, angleOffset=0)
     lidar.start_loop()
     while running:
         yield lidar.distances
     lidar.stop()
+
 
 def plotLine():
     x = range(360)
@@ -133,9 +142,11 @@ def plotLine():
     plt.ion()
     fig = plt.figure()
     # https://www.statology.org/fig-add-subplot/
-    ax = fig.add_subplot(111) # In layout that has 1 row(s) and 1 column(s), add the first subplot
+    ax = fig.add_subplot(
+        111
+    )  # In layout that has 1 row(s) and 1 column(s), add the first subplot
     # line1 = ax.scatter(x, y)
-    line1, = ax.plot(x, y, linewidth=0, marker='o')
+    (line1,) = ax.plot(x, y, linewidth=0, marker="o")
     try:
         for ys in getDistances(running=True):
             line1.set_ydata(ys)
@@ -147,22 +158,32 @@ def plotLine():
 
 def plotRoom():
     import math
+
     x = [-3500, 3500] * 180
     y = [-3500, 3500] * 180
     plt.ion()
     fig = plt.figure()
-    ax = fig.add_subplot(111) # In layout that has 1 row(s) and 1 column(s), add the first subplot
-    line1, = ax.plot(x, y, linewidth=0, marker='o')
+    ax = fig.add_subplot(
+        111
+    )  # In layout that has 1 row(s) and 1 column(s), add the first subplot
+    (line1,) = ax.plot(x, y, linewidth=0, marker="o")
     try:
         for dists in getDistances(running=True):
-            xs = [int(dist * math.cos(math.radians(deg))) for deg, dist in enumerate(dists)]
-            ys = [int(dist * math.sin(math.radians(deg))) for deg, dist in enumerate(dists)]
+            xs = [
+                int(dist * math.cos(math.radians(deg)))
+                for deg, dist in enumerate(dists)
+            ]
+            ys = [
+                int(dist * math.sin(math.radians(deg)))
+                for deg, dist in enumerate(dists)
+            ]
             line1.set_xdata(xs)
             line1.set_ydata(ys)
             fig.canvas.draw()
             fig.canvas.flush_events()
     except KeyboardInterrupt:
         getDistances(running=False)
+
 
 if __name__ == "__main__":
     plotRoom()
